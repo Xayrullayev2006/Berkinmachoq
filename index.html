@@ -9,21 +9,17 @@
             type: Phaser.AUTO,
             width: 800,
             height: 600,
-            backgroundColor: '#2d2d2d',
             scene: {
-                preload: preload,
                 create: create
             }
         };
 
         const game = new Phaser.Game(config);
 
-        function preload() {
-            // Rasmlar va effektlarni shu yerda yuklaymiz
-        }
-
         function create() {
-            this.add.text(400, 300, 'Ghost Hunters boshlandi!', { fontSize: '32px', fill: '#fff' }).setOrigin(0.5);
+            // Qahramon uchun oddiy kvadrat
+            this.player = this.add.rectangle(400, 300, 50, 50, 0xff0000);
+            this.add.text(400, 100, 'Ghost Hunters: Qahramon tayyor!', { fill: '#fff' }).setOrigin(0.5);
         }
     </script>
 </body>
