@@ -23,7 +23,7 @@
 
         const game = new Phaser.Game(config);
 
-     function preload() {
+    function preload() {
             // Sharpa o'rniga odam (dude) personajini yuklaymiz
             this.load.spritesheet('dude', 'https://labs.phaser.io/assets/sprites/dude.png', { frameWidth: 32, frameHeight: 48 });
         }
@@ -76,13 +76,6 @@
                 this.player.setVelocityY(0);
             }
         }
-            if (this.cursors.up.isDown) {
-                this.player.setVelocityY(-160);
-            } else if (this.cursors.down.isDown) {
-                this.player.setVelocityY(160);
-            } else {
-                this.player.setVelocityY(0);
-            }
         }
     </script>
 </body>
