@@ -2,6 +2,7 @@
 <html>
 <head>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+    <style>body { margin: 0; background: #2d2d2d; }</style>
 </head>
 <body>
     <script>
@@ -9,17 +10,52 @@
             type: Phaser.AUTO,
             width: 800,
             height: 600,
+            physics: {
+                default: 'arcade',
+                arcade: { gravity: { y: 0 }, debug: false }
+            },
             scene: {
-                create: create
+                preload: preload,
+                create: create,
+                update: update
             }
         };
 
         const game = new Phaser.Game(config);
 
+        function preload() {
+            // Rasmni yuklaymiz. Men buni siz uchun test qilib ko'rish uchun bitta ochiq rasmni qo'ydim.
+            // O'yiningizni professional qilish uchun keyinchalik o'zingiz yuklashingiz kerak bo'ladi.
+            this.load.image('player', 'https://labs.phaser.io/assets/sprites/ghost.png');
+        }
+
         function create() {
-            // Qahramon uchun oddiy kvadrat
-            this.player = this.add.rectangle(400, 300, 50, 50, 0xff0000);
-            this.add.text(400, 100, 'Ghost Hunters: Qahramon tayyor!', { fill: '#fff' }).setOrigin(0.5);
+            // Qizil kvadrat o'rniga haqiqiy rasmni chiqaramiz
+            this.player = this.physics.add.sprite(400, 300, 'player');
+            
+            this.add.text(400, 50, 'Ghost Hunters: Chiroyli grafika boshlandi!', { fontSize: '24px', fill: '#fff' }).setOrigin(0.5);
+
+            // Boshqarish klavishlarini faollashtiramiz
+            this.cursors = this.input.keyboard.createCursorKeys();
+        }
+
+        function update() {
+            // Qahramonni boshqarish
+            if (this.cursors.left.isDown) {
+                this.player.setVelocityX(-160);
+            } else if (this.cursors.right.isDown) {
+                this.player.setVelocityX(160);
+            } else {
+                this.player.setVelocityX(0);
+            }
+
+            if (this.cursors.up.isDown) {
+                this.player.setVelocityY(-160);
+            } else if (this.cursors.down.isDown) {
+                this.player.setVelocityY(160);
+            } else {
+                this.player.setVelocityY(0);
+            }
         }
     </script>
 </body>
