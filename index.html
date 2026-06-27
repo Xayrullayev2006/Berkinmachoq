@@ -1,1048 +1,223 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Hide & Seek – Yashirin Macho</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  
-  :root {
-    --grass: #2d5a1b;
-    --grass-light: #3a7a25;
-    --path: #8b6914;
-    --wall: #4a3728;
-    --seeker: #e84040;
-    --hider: #3a9de8;
-    --found: #888;
-    --ui-bg: rgba(10,10,20,0.88);
-    --ui-border: rgba(255,255,255,0.12);
-    --gold: #f5c842;
-    --font: 'Segoe UI', system-ui, sans-serif;
-  }
-
-  body {
-    background: #1a1a2e;
-    font-family: var(--font);
-    overflow: hidden;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    user-select: none;
-  }
-
-  /* ── SCREENS ── */
-  .screen { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100dvh; padding: 20px; }
-  .screen.active { display: flex; }
-
-  /* LOBBY */
-  #lobby { background: radial-gradient(ellipse at 50% 30%, #1e3a5f 0%, #0d0d1a 70%); gap: 16px; }
-  
-  .game-logo { font-size: 52px; margin-bottom: 4px; animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
-  
-  .game-title { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -0.5px; }
-  .game-sub   { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: -8px; }
-  
-  .card {
-    background: var(--ui-bg);
-    border: 1px solid var(--ui-border);
-    border-radius: 16px;
-    padding: 18px 20px;
-    width: 100%;
-    max-width: 340px;
-  }
-  .card-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: rgba(255,255,255,0.4); text-transform: uppercase; margin-bottom: 12px; }
-  
-  .input-row { display: flex; gap: 10px; margin-bottom: 12px; }
-  .input-row:last-child { margin-bottom: 0; }
-  
-  input[type=text], input[type=number] {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--ui-border);
-    border-radius: 10px;
-    color: #fff;
-    font-size: 14px;
-    padding: 10px 14px;
-    outline: none;
-    flex: 1;
-    transition: border-color .2s;
-  }
-  input:focus { border-color: rgba(255,255,255,0.3); }
-  input::placeholder { color: rgba(255,255,255,0.25); }
-  
-  .btn {
-    border: none; border-radius: 12px; cursor: pointer;
-    font-size: 15px; font-weight: 700; padding: 13px 20px;
-    transition: transform .12s, opacity .12s;
-    width: 100%; max-width: 340px;
-    letter-spacing: 0.2px;
-  }
-  .btn:active { transform: scale(0.96); opacity: 0.85; }
-  .btn-primary { background: linear-gradient(135deg, #4f8ef7, #2d5be3); color: #fff; }
-  .btn-danger  { background: linear-gradient(135deg, #e84040, #b02020); color: #fff; }
-  .btn-success { background: linear-gradient(135deg, #27c96e, #1a9e52); color: #fff; }
-  .btn-ghost   { background: rgba(255,255,255,0.07); color: rgba(255,255,255,0.7); border: 1px solid var(--ui-border); }
-
-  .role-selector { display: flex; gap: 8px; }
-  .role-btn {
-    flex: 1; padding: 10px 6px; border-radius: 10px;
-    border: 2px solid transparent; background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.5); font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all .2s; text-align: center;
-  }
-  .role-btn.active-seeker { border-color: var(--seeker); background: rgba(232,64,64,0.15); color: var(--seeker); }
-  .role-btn.active-hider  { border-color: var(--hider);  background: rgba(58,157,232,0.15); color: var(--hider); }
-
-  /* WAITING */
-  #waiting { background: radial-gradient(ellipse at 50% 20%, #1a3a1a 0%, #0d0d1a 70%); gap: 14px; }
-  .room-code { font-size: 42px; font-weight: 900; letter-spacing: 8px; color: var(--gold); }
-  .room-hint  { font-size: 12px; color: rgba(255,255,255,0.4); }
-  .players-list { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
-  .player-item {
-    display: flex; align-items: center; gap: 10px;
-    background: var(--ui-bg); border: 1px solid var(--ui-border);
-    border-radius: 10px; padding: 10px 14px; font-size: 13px; color: #fff;
-  }
-  .player-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .player-dot.seeker { background: var(--seeker); }
-  .player-dot.hider  { background: var(--hider); }
-  .player-badge { margin-left: auto; font-size: 10px; font-weight: 700; letter-spacing: 1px; padding: 2px 8px; border-radius: 20px; }
-  .player-badge.seeker { background: rgba(232,64,64,0.2); color: var(--seeker); }
-  .player-badge.hider  { background: rgba(58,157,232,0.2); color: var(--hider); }
-
-  .countdown-ring { position: relative; width: 80px; height: 80px; }
-  .countdown-num  { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 900; color: #fff; }
-  .cring-svg { transform: rotate(-90deg); }
-  .cring-bg  { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 6; }
-  .cring-fg  { fill: none; stroke: var(--gold); stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset .9s linear; }
-
-  /* GAME */
-  #game { padding: 0; position: relative; background: #1a2a14; }
-  
-  #gameCanvas { display: block; touch-action: none; }
-
-  /* HUD */
-  .hud {
-    position: absolute; top: 0; left: 0; right: 0;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px; pointer-events: none;
-    background: linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%);
-  }
-  .hud-pill {
-    background: var(--ui-bg); border: 1px solid var(--ui-border);
-    border-radius: 20px; padding: 5px 12px;
-    font-size: 13px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px;
-  }
-  .hud-timer { font-size: 20px; font-weight: 900; color: var(--gold); font-variant-numeric: tabular-nums; }
-  
-  /* Joystick */
-  .joystick-zone {
-    position: absolute; bottom: 24px; left: 24px;
-    width: 120px; height: 120px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.06);
-    border: 2px solid rgba(255,255,255,0.12);
-  }
-  .joystick-knob {
-    position: absolute;
-    width: 48px; height: 48px; border-radius: 50%;
-    background: rgba(255,255,255,0.25);
-    border: 2px solid rgba(255,255,255,0.4);
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    transition: background .1s;
-    pointer-events: none;
-  }
-
-  /* Minimap */
-  .minimap {
-    position: absolute; bottom: 20px; right: 16px;
-    width: 90px; height: 90px; border-radius: 10px;
-    border: 1.5px solid rgba(255,255,255,0.2);
-    overflow: hidden; background: rgba(0,0,0,0.5);
-  }
-  #minimapCanvas { display: block; }
-
-  /* Flashlight overlay for seeker */
-  #flashlightCanvas {
-    position: absolute; inset: 0;
-    pointer-events: none;
-    display: none;
-  }
-
-  /* Status banner */
-  .status-banner {
-    position: absolute; top: 60px; left: 50%; transform: translateX(-50%);
-    background: var(--ui-bg); border: 1px solid var(--ui-border);
-    border-radius: 20px; padding: 6px 16px;
-    font-size: 13px; color: rgba(255,255,255,0.8); white-space: nowrap;
-    pointer-events: none; transition: opacity .3s;
-  }
-
-  /* RESULT */
-  #result { background: radial-gradient(ellipse at 50% 30%, #1a1a3f 0%, #0d0d1a 70%); gap: 16px; }
-  .result-emoji { font-size: 64px; animation: bounce .6s ease infinite alternate; }
-  @keyframes bounce { from{transform:translateY(0)} to{transform:translateY(-10px)} }
-  .result-title { font-size: 28px; font-weight: 900; color: #fff; text-align: center; }
-  .result-sub   { font-size: 14px; color: rgba(255,255,255,0.5); text-align: center; }
-  .stats-row { display: flex; gap: 10px; }
-  .stat-box {
-    flex: 1; background: var(--ui-bg); border: 1px solid var(--ui-border);
-    border-radius: 12px; padding: 12px; text-align: center;
-  }
-  .stat-num   { font-size: 26px; font-weight: 900; color: var(--gold); }
-  .stat-label { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
-
-  /* Toast */
-  .toast {
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-    background: rgba(0,0,0,0.85); color: #fff;
-    padding: 10px 22px; border-radius: 20px; font-size: 15px; font-weight: 700;
-    z-index: 999; pointer-events: none;
-    opacity: 0; transition: opacity .25s;
-  }
-  .toast.show { opacity: 1; }
-
-  .divider { width: 100%; max-width: 340px; height: 1px; background: var(--ui-border); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hide & Seek: Chameleon</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #2c3e50; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0, 0, 0, 0.8); padding: 20px; border-radius: 15px; text-align: center; color: white; pointer-events: auto; }
+        input, button { padding: 10px; margin: 10px 0; width: 80%; border-radius: 8px; border: none; font-size: 16px; font-weight: bold; }
+        button { background: #e74c3c; color: white; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #c0392b; }
+        #joystick-zone { position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px; background: rgba(255,255,255,0.2); border-radius: 50%; pointer-events: auto; touch-action: none; }
+        #joystick-knob { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: rgba(255,255,255,0.5); border-radius: 50%; }
+        #action-btn { position: absolute; bottom: 40px; right: 30px; width: 80px; height: 80px; background: rgba(46, 204, 113, 0.7); border-radius: 50%; color: white; font-weight: bold; display: flex; justify-content: center; align-items: center; pointer-events: auto; user-select: none; }
+    </style>
 </head>
 <body>
 
-<!-- LOBBY -->
-<div id="lobby" class="screen active">
-  <div class="game-logo">🙈</div>
-  <div class="game-title">Yashirin Macho</div>
-  <div class="game-sub">Hide & Seek · 2–10 o'yinchi</div>
+    <canvas id="gameCanvas"></canvas>
 
-  <div class="card">
-    <div class="card-title">Sizning ismingiz</div>
-    <div class="input-row">
-      <input type="text" id="nameInput" placeholder="Ism kiriting..." maxlength="14">
+    <div id="ui-layer">
+        <div id="main-menu" class="menu">
+            <h2>Hide & Seek</h2>
+            <input type="text" id="roomCode" placeholder="Xona kodi (masalan: 777)">
+            <button onclick="joinGame()">O'yinga kirish</button>
+        </div>
+
+        <div id="joystick-zone" style="display: none;">
+            <div id="joystick-knob"></div>
+        </div>
+        <div id="action-btn" style="display: none;">KAMUFLYAJ</div>
     </div>
-    <div class="card-title" style="margin-top:4px">Rol tanlang</div>
-    <div class="role-selector">
-      <div class="role-btn active-seeker" id="roleSeeker" onclick="selectRole('seeker')">🔦 Qidiruvchi</div>
-      <div class="role-btn" id="roleHider" onclick="selectRole('hider')">🫣 Yashiruvchi</div>
-    </div>
-  </div>
 
-  <div class="card">
-    <div class="card-title">Xona yaratish</div>
-    <button class="btn btn-primary" onclick="createRoom()">➕ Yangi xona</button>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Mavjud xonaga kirish</div>
-    <div class="input-row">
-      <input type="text" id="roomCodeInput" placeholder="Xona kodi (4 raqam)" maxlength="4" style="text-align:center;font-size:20px;letter-spacing:4px">
-    </div>
-    <button class="btn btn-ghost" onclick="joinRoom()">🚪 Kirish</button>
-  </div>
-</div>
-
-<!-- WAITING ROOM -->
-<div id="waiting" class="screen">
-  <div class="hud-pill" style="font-size:11px;color:rgba(255,255,255,0.4)">XONA KODI</div>
-  <div class="room-code" id="displayCode">----</div>
-  <div class="room-hint">Do'stlaringizga ushbu kodni yuboring</div>
-  
-  <div class="card" style="max-width:340px;width:100%">
-    <div class="card-title">O'yinchilar (<span id="playerCount">1</span>/10)</div>
-    <div class="players-list" id="playersList"></div>
-  </div>
-
-  <div id="seekerCountdown" style="display:none;align-items:center;flex-direction:column;gap:8px">
-    <div class="room-hint">Boshlashga</div>
-    <div class="countdown-ring">
-      <svg class="cring-svg" width="80" height="80" viewBox="0 0 80 80">
-        <circle class="cring-bg" cx="40" cy="40" r="34"/>
-        <circle class="cring-fg" id="cringFg" cx="40" cy="40" r="34"
-          stroke-dasharray="213.6" stroke-dashoffset="0"/>
-      </svg>
-      <div class="countdown-num" id="countdownNum">5</div>
-    </div>
-  </div>
-
-  <button class="btn btn-success" id="startBtn" onclick="hostStart()" style="max-width:340px">▶ Boshlash</button>
-  <button class="btn btn-ghost" onclick="leaveRoom()" style="max-width:340px;margin-top:-8px">Chiqish</button>
-</div>
-
-<!-- GAME -->
-<div id="game" class="screen">
-  <canvas id="gameCanvas"></canvas>
-  <canvas id="minimapCanvas" class="minimap" width="90" height="90"></canvas>
-  <canvas id="flashlightCanvas"></canvas>
-
-  <div class="hud">
-    <div class="hud-pill" id="hudRole">🔦 Qidiruvchi</div>
-    <div class="hud-timer" id="hudTimer">03:00</div>
-    <div class="hud-pill" id="hudScore">0/0</div>
-  </div>
-
-  <div class="status-banner" id="statusBanner">Yashiring! Seeker ko'zini yumdi...</div>
-
-  <div class="joystick-zone" id="joystickZone">
-    <div class="joystick-knob" id="joystickKnob"></div>
-  </div>
-</div>
-
-<!-- RESULT -->
-<div id="result" class="screen">
-  <div class="result-emoji" id="resultEmoji">🏆</div>
-  <div class="result-title" id="resultTitle">G'alaba!</div>
-  <div class="result-sub" id="resultSub">Qidiruvchi hammani topdi</div>
-  <div class="stats-row">
-    <div class="stat-box"><div class="stat-num" id="statTime">--</div><div class="stat-label">Vaqt</div></div>
-    <div class="stat-box"><div class="stat-num" id="statFound">--</div><div class="stat-label">Topildi</div></div>
-    <div class="stat-box"><div class="stat-num" id="statEscape">--</div><div class="stat-label">Qochdi</div></div>
-  </div>
-  <button class="btn btn-primary" onclick="goLobby()">🔄 Qayta o'ynash</button>
-  <button class="btn btn-ghost" onclick="goLobby()" style="margin-top:-4px">🏠 Bosh sahifa</button>
-</div>
-
-<div class="toast" id="toast"></div>
+    <audio id="bg-music" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" loop></audio>
+    <audio id="camo-sound" src="path_to_your_camo_sound.mp3"></audio>
 
 <script>
-// ────────────────────────────────────────────────────────────
-// Telegram Web App init
-// ────────────────────────────────────────────────────────────
-const tg = window.Telegram?.WebApp;
-if (tg) {
-  tg.ready();
-  tg.expand();
-  tg.setHeaderColor('#0d0d1a');
-  tg.setBackgroundColor('#0d0d1a');
-}
-const tgUser = tg?.initDataUnsafe?.user;
+    // Telegram Web App integratsiyasi
+    const tg = window.Telegram.WebApp;
+    tg.expand();
 
-// Pre-fill name from Telegram
-const nameInput = document.getElementById('nameInput');
-if (tgUser?.first_name) nameInput.value = tgUser.first_name;
-else nameInput.value = 'O\'yinchi' + Math.floor(Math.random()*99+1);
+    const socket = io('https://SIZNING-BACKEND-LINKINGIZ.com'); // Backend manzilingizni qo'yasiz
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-// ────────────────────────────────────────────────────────────
-// STATE
-// ────────────────────────────────────────────────────────────
-let myRole = 'seeker';
-let myName = '';
-let roomCode = '';
-let isHost = false;
-let players = {};   // id -> {name, role, x, y, found, color}
-let myId = null;
-let gameState = 'lobby'; // lobby | waiting | hiding | seeking | end
-let gameTimer = 0;
-let timerInterval = null;
-let gameChannel = null; // BroadcastChannel
-let foundCount = 0;
-let totalHiders = 0;
-let gameStartTime = 0;
+    let currentRoom = '';
+    let players = {};
+    let myId = null;
 
-// Canvas & physics
-let canvas, ctx, W, H;
-let camera = {x:0, y:0};
-const MAP_W = 1400, MAP_H = 1400;
-const PLAYER_R = 12;
-const SPEED = 2.8;
+    // O'yin holati
+    const me = { x: 400, y: 300, speed: 4, camouflaged: false, color: '#e74c3c', vx: 0, vy: 0 };
 
-// Joystick
-let joyActive = false, joyStartX=0, joyStartY=0, joyDX=0, joyDY=0;
+    // Level Design: 3D ko'rinishdagi binolar
+    const buildings = [
+        { x: 200, y: 200, width: 150, height: 150, color: '#8e44ad', type: 'solid' },
+        { x: 600, y: 100, width: 200, height: 150, color: '#2980b9', type: 'enterable' }, // Ichiga kirib yashirinish mumkin
+        { x: 300, y: 500, width: 300, height: 100, color: '#f39c12', type: 'solid' }
+    ];
 
-// ────────────────────────────────────────────────────────────
-// MAP GENERATION
-// ────────────────────────────────────────────────────────────
-const MAP_TILES = []; // each {x,y,w,h,type}
-const SPAWN_POINTS = [];
+    // Xonaga kirish
+    function joinGame() {
+        const code = document.getElementById('roomCode').value;
+        if(code.trim() === '') return;
+        
+        currentRoom = code;
+        socket.emit('joinRoom', currentRoom);
+        
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('joystick-zone').style.display = 'block';
+        document.getElementById('action-btn').style.display = 'flex';
+        
+        document.getElementById('bg-music').play().catch(e => console.log("Avto-play bloklandi"));
+    }
 
-function generateMap() {
-  MAP_TILES.length = 0; SPAWN_POINTS.length = 0;
-
-  // Outer walls
-  const T=20;
-  MAP_TILES.push({x:0,y:0,w:MAP_W,h:T,type:'wall'});
-  MAP_TILES.push({x:0,y:MAP_H-T,w:MAP_W,h:T,type:'wall'});
-  MAP_TILES.push({x:0,y:0,w:T,h:MAP_H,type:'wall'});
-  MAP_TILES.push({x:MAP_W-T,y:0,w:T,h:MAP_H,type:'wall'});
-
-  // Interior structures (buildings, bushes, paths)
-  const buildings = [
-    {x:80,y:80,w:180,h:120},
-    {x:320,y:80,w:140,h:160},
-    {x:520,y:60,w:200,h:100},
-    {x:780,y:80,w:160,h:180},
-    {x:1000,y:80,w:180,h:130},
-    {x:1160,y:80,w:160,h:200},
-    {x:80,y:280,w:120,h:200},
-    {x:260,y:310,w:180,h:140},
-    {x:500,y:280,w:140,h:200},
-    {x:700,y:300,w:200,h:160},
-    {x:960,y:280,w:160,h:180},
-    {x:1180,y:350,w:140,h:120},
-    {x:80,y:560,w:200,h:160},
-    {x:360,y:540,w:160,h:200},
-    {x:600,y:550,w:180,h:160},
-    {x:840,y:540,w:200,h:180},
-    {x:1080,y:560,w:160,h:140},
-    {x:1260,y:540,w:100,h:200},
-    {x:80,y:800,w:160,h:200},
-    {x:300,y:780,w:200,h:180},
-    {x:560,y:800,w:160,h:200},
-    {x:780,y:780,w:200,h:160},
-    {x:1040,y:800,w:160,h:200},
-    {x:1240,y:800,w:120,h:160},
-    {x:80,y:1080,w:180,h:180},
-    {x:320,y:1060,w:160,h:200},
-    {x:540,y:1080,w:200,h:160},
-    {x:800,y:1060,w:180,h:200},
-    {x:1040,y:1080,w:160,h:180},
-    {x:1220,y:1060,w:140,h:200},
-    // Center plaza obstacle
-    {x:600,y:620,w:200,h:160},
-  ];
-  buildings.forEach(b => MAP_TILES.push({...b,type:'wall'}));
-
-  // Bushes / trees (circular obstacles simulated as small squares)
-  const bushPos = [
-    [240,200],[440,200],[640,140],[900,200],[1100,200],[1320,200],
-    [160,420],[380,450],[530,430],[760,470],[880,430],[1120,450],[1300,430],
-    [200,680],[420,700],[670,700],[900,680],[1160,700],[230,900],
-    [450,920],[700,880],[950,920],[1160,880],[300,1160],[520,1180],
-    [740,1160],[980,1200],[1160,1160],
-  ];
-  bushPos.forEach(([bx,by]) => MAP_TILES.push({x:bx-18,y:by-18,w:36,h:36,type:'bush'}));
-
-  // Paths (decorative, no collision)
-  MAP_TILES.push({x:T,y:500,w:MAP_W-T*2,h:40,type:'path'});
-  MAP_TILES.push({x:T,y:1020,w:MAP_W-T*2,h:40,type:'path'});
-  MAP_TILES.push({x:660,y:T,w:80,h:MAP_H-T*2,type:'path'});
-  MAP_TILES.push({x:200,y:T,w:40,h:MAP_H-T*2,type:'path'});
-  MAP_TILES.push({x:1100,y:T,w:40,h:MAP_H-T*2,type:'path'});
-
-  // Spawn points (open areas)
-  const sp = [
-    [700,545],[700,700],[400,700],[950,700],[700,300],
-    [400,300],[1000,300],[400,1100],[1000,1100],[700,1100],
-  ];
-  sp.forEach(([sx,sy]) => SPAWN_POINTS.push({x:sx,y:sy}));
-}
-generateMap();
-
-function getSpawn(i) {
-  const s = SPAWN_POINTS[i % SPAWN_POINTS.length];
-  return {x:s.x + (Math.random()-0.5)*30, y:s.y + (Math.random()-0.5)*30};
-}
-
-// ────────────────────────────────────────────────────────────
-// ROLE SELECT
-// ────────────────────────────────────────────────────────────
-function selectRole(r) {
-  myRole = r;
-  document.getElementById('roleSeeker').className = 'role-btn' + (r==='seeker'?' active-seeker':'');
-  document.getElementById('roleHider').className  = 'role-btn' + (r==='hider' ?' active-hider':'');
-}
-
-// ────────────────────────────────────────────────────────────
-// ROOM LOGIC (BroadcastChannel – works in same browser/same device for demo)
-// For production: replace with WebSocket/Supabase realtime
-// ────────────────────────────────────────────────────────────
-function generateCode() {
-  return String(Math.floor(1000 + Math.random()*9000));
-}
-
-function broadcastMsg(type, data={}) {
-  if (!gameChannel) return;
-  gameChannel.postMessage({type, from:myId, data});
-}
-
-function setupChannel(code) {
-  if (gameChannel) gameChannel.close();
-  gameChannel = new BroadcastChannel('hideseek_'+code);
-  gameChannel.onmessage = handleMessage;
-}
-
-function handleMessage({data: msg}) {
-  if (msg.from === myId) return;
-  switch(msg.type) {
-    case 'JOIN':
-      players[msg.from] = {...msg.data, x:700, y:545};
-      updateWaitingUI();
-      // Host echoes full player list
-      if (isHost) broadcastMsg('SYNC', {players, state:gameState});
-      break;
-    case 'SYNC':
-      if (!isHost) {
-        const p = msg.data.players;
-        Object.keys(p).forEach(id => { if(id!==myId) players[id]=p[id]; });
-        gameState = msg.data.state;
-        updateWaitingUI();
-        if (gameState==='hiding' || gameState==='seeking') {
-          if (document.getElementById('waiting').classList.contains('active')) startGameClient();
-        }
-      }
-      break;
-    case 'START':
-      startGameClient(msg.data);
-      break;
-    case 'MOVE':
-      if (players[msg.from]) {
-        players[msg.from].x = msg.data.x;
-        players[msg.from].y = msg.data.y;
-      }
-      break;
-    case 'FOUND':
-      if (players[msg.data.id]) { players[msg.data.id].found=true; foundCount++; }
-      showToast('😱 '+players[msg.data.id]?.name+' topildi!');
-      checkWin();
-      break;
-    case 'END':
-      endGame(msg.data.reason);
-      break;
-    case 'LEAVE':
-      delete players[msg.from];
-      updateWaitingUI();
-      break;
-  }
-}
-
-// ────────────────────────────────────────────────────────────
-// LOBBY ACTIONS
-// ────────────────────────────────────────────────────────────
-function createRoom() {
-  myName = nameInput.value.trim() || 'O\'yinchi';
-  myId = 'p' + Date.now() + Math.random().toString(36).slice(2,6);
-  roomCode = generateCode();
-  isHost = true;
-  players = {};
-  players[myId] = {name:myName, role:myRole, color:pickColor(0), found:false};
-  setupChannel(roomCode);
-  showWaiting();
-}
-
-function joinRoom() {
-  const code = document.getElementById('roomCodeInput').value.trim();
-  if (code.length !== 4) { showToast('4 ta raqam kiriting!'); return; }
-  myName = nameInput.value.trim() || 'O\'yinchi';
-  myId = 'p' + Date.now() + Math.random().toString(36).slice(2,6);
-  roomCode = code;
-  isHost = false;
-  players = {};
-  players[myId] = {name:myName, role:myRole, color:pickColor(Object.keys(players).length), found:false};
-  setupChannel(roomCode);
-  broadcastMsg('JOIN', {name:myName, role:myRole, color:pickColor(1), found:false});
-  showWaiting();
-}
-
-function leaveRoom() {
-  broadcastMsg('LEAVE');
-  if (gameChannel) gameChannel.close();
-  gameChannel = null;
-  showScreen('lobby');
-}
-
-// ────────────────────────────────────────────────────────────
-// WAITING ROOM
-// ────────────────────────────────────────────────────────────
-function showWaiting() {
-  document.getElementById('displayCode').textContent = roomCode;
-  updateWaitingUI();
-  showScreen('waiting');
-  document.getElementById('startBtn').style.display = isHost ? 'block' : 'none';
-}
-
-function updateWaitingUI() {
-  const ids = Object.keys(players);
-  document.getElementById('playerCount').textContent = ids.length;
-  const list = document.getElementById('playersList');
-  list.innerHTML = ids.map((id,i) => {
-    const p = players[id];
-    return `<div class="player-item">
-      <div class="player-dot ${p.role}"></div>
-      <span>${p.name}${id===myId?' (Men)':''}</span>
-      <span class="player-badge ${p.role}">${p.role==='seeker'?'Qidiruvchi':'Yashiruvchi'}</span>
-    </div>`;
-  }).join('');
-}
-
-let countdownTimeout = null;
-function hostStart() {
-  if (!isHost) return;
-  const ids = Object.keys(players);
-  if (ids.length < 2) { showToast('Kamida 2 o\'yinchi kerak!'); return; }
-  const hasSeeker = ids.some(id => players[id].role==='seeker');
-  if (!hasSeeker) { showToast('Kamida 1 ta Qidiruvchi kerak!'); return; }
-
-  // Assign spawn positions
-  ids.forEach((id,i) => {
-    const sp = getSpawn(i);
-    players[id].x = sp.x; players[id].y = sp.y;
-  });
-
-  gameState = 'hiding';
-  const payload = {players, code:roomCode};
-  broadcastMsg('SYNC', {players, state:'hiding'});
-  broadcastMsg('START', payload);
-
-  startCountdown(() => {
-    gameState = 'seeking';
-    broadcastMsg('SYNC', {players, state:'seeking'});
-    startActualGame();
-  });
-  startGameClient(payload);
-}
-
-function startCountdown(cb) {
-  let n = 5;
-  const cd = document.getElementById('seekerCountdown');
-  const num = document.getElementById('countdownNum');
-  const fg = document.getElementById('cringFg');
-  const circ = 213.6;
-  cd.style.display = 'flex';
-  document.getElementById('startBtn').style.display = 'none';
-  function tick() {
-    num.textContent = n;
-    fg.style.strokeDashoffset = circ * (1 - n/5);
-    if (n <= 0) { cd.style.display='none'; cb(); return; }
-    n--;
-    countdownTimeout = setTimeout(tick, 1000);
-  }
-  tick();
-}
-
-// ────────────────────────────────────────────────────────────
-// GAME START
-// ────────────────────────────────────────────────────────────
-function startGameClient(payload) {
-  if (payload) {
-    Object.keys(payload.players).forEach(id => {
-      if (!players[id]) players[id] = payload.players[id];
-      else { players[id].x = payload.players[id].x; players[id].y = payload.players[id].y; }
+    socket.on('connect', () => { myId = socket.id; });
+    
+    socket.on('updatePlayers', (serverPlayers) => {
+        players = serverPlayers;
     });
-  }
-  totalHiders = Object.values(players).filter(p=>p.role==='hider').length;
-  foundCount = 0;
-  showScreen('game');
-  initCanvas();
-  gameState = myRole==='seeker' ? 'hiding_seeker' : 'hiding';
-  gameStartTime = Date.now();
-  startGameLoop();
-  startGameTimer();
 
-  // Status
-  const me = players[myId];
-  const seekerName = Object.values(players).find(p=>p.role==='seeker')?.name || 'Qidiruvchi';
-  if (myRole === 'seeker') {
-    setBanner('👁️ Ko\'zingizni 5 soniya yuming... Keyin qidiring!');
-    setTimeout(() => {
-      gameState = 'seeking';
-      setBanner('🔦 Boshlang! Yashiringanlarni toping!');
-      document.getElementById('flashlightCanvas').style.display = 'block';
-    }, 5000);
-  } else {
-    setBanner(`🫣 Tezda yashiring! ${seekerName} tez keladi!`);
-    setTimeout(() => setBanner('Yashirindingizmi? Xavfli yaqinlashsa qoching!'), 5000);
-  }
-  document.getElementById('hudRole').textContent = myRole==='seeker'?'🔦 Qidiruvchi':'🫣 Yashiruvchi';
-  updateHudScore();
-}
+    // --- Boshqaruv (Joystick) ---
+    const joystick = document.getElementById('joystick-zone');
+    const knob = document.getElementById('joystick-knob');
+    let isDragging = false;
 
-function startActualGame() {
-  // Already handled by timeout in hostStart
-}
-
-// ────────────────────────────────────────────────────────────
-// CANVAS
-// ────────────────────────────────────────────────────────────
-let animId;
-function initCanvas() {
-  canvas = document.getElementById('gameCanvas');
-  ctx = canvas.getContext('2d');
-  W = window.innerWidth; H = window.innerHeight;
-  canvas.width = W; canvas.height = H;
-
-  const flc = document.getElementById('flashlightCanvas');
-  flc.width = W; flc.height = H;
-
-  setupJoystick();
-}
-
-let lastTime = 0;
-function startGameLoop() {
-  if (animId) cancelAnimationFrame(animId);
-  function loop(ts) {
-    const dt = Math.min((ts - lastTime)/16.67, 3);
-    lastTime = ts;
-    update(dt);
-    draw();
-    animId = requestAnimationFrame(loop);
-  }
-  animId = requestAnimationFrame(loop);
-}
-
-// ────────────────────────────────────────────────────────────
-// UPDATE
-// ────────────────────────────────────────────────────────────
-function update(dt) {
-  if (gameState === 'end') return;
-  const me = players[myId];
-  if (!me) return;
-
-  // Move player
-  const dx = joyDX * SPEED * dt;
-  const dy = joyDY * SPEED * dt;
-  if (Math.abs(dx) > 0.01 || Math.abs(dy) > 0.01) {
-    const nx = me.x + dx;
-    const ny = me.y + dy;
-    if (!wallAt(nx, me.y)) me.x = clamp(nx, PLAYER_R+20, MAP_W-PLAYER_R-20);
-    if (!wallAt(me.x, ny)) me.y = clamp(ny, PLAYER_R+20, MAP_H-PLAYER_R-20);
-    broadcastMsg('MOVE', {x:me.x, y:me.y});
-  }
-
-  // Camera follow
-  camera.x = clamp(me.x - W/2, 0, MAP_W - W);
-  camera.y = clamp(me.y - H/2, 0, MAP_H - H);
-
-  // Seeker collision detection
-  if (myRole === 'seeker' && gameState === 'seeking') {
-    Object.entries(players).forEach(([id, p]) => {
-      if (id===myId || p.found || p.role==='seeker') return;
-      const dist = Math.hypot(p.x - me.x, p.y - me.y);
-      if (dist < PLAYER_R * 2.5) {
-        p.found = true; foundCount++;
-        broadcastMsg('FOUND', {id});
-        showToast('😱 '+p.name+' topildi!');
-        updateHudScore();
-        checkWin();
-      }
+    joystick.addEventListener('touchstart', handleJoystick);
+    joystick.addEventListener('touchmove', handleJoystick);
+    joystick.addEventListener('touchend', () => {
+        isDragging = false;
+        me.vx = 0; me.vy = 0;
+        knob.style.transform = `translate(0px, 0px)`;
     });
-  }
-}
 
-function wallAt(nx, ny) {
-  return MAP_TILES.some(t => {
-    if (t.type === 'path') return false;
-    return nx + PLAYER_R > t.x && nx - PLAYER_R < t.x+t.w &&
-           ny + PLAYER_R > t.y && ny - PLAYER_R < t.y+t.h;
-  });
-}
+    function handleJoystick(e) {
+        e.preventDefault();
+        isDragging = true;
+        const rect = joystick.getBoundingClientRect();
+        const touch = e.touches[0];
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        let dx = touch.clientX - centerX;
+        let dy = touch.clientY - centerY;
+        const distance = Math.sqrt(dx*dx + dy*dy);
+        const maxDist = rect.width / 2 - 25;
 
-function clamp(v, mn, mx) { return Math.max(mn, Math.min(mx, v)); }
-
-// ────────────────────────────────────────────────────────────
-// DRAW
-// ────────────────────────────────────────────────────────────
-const COLORS = ['#e84040','#3a9de8','#27c96e','#f5c842','#e87a40','#9b59b6','#1abc9c','#e8408b','#f39c12','#2ecc71'];
-function pickColor(i) { return COLORS[i % COLORS.length]; }
-
-function draw() {
-  ctx.clearRect(0, 0, W, H);
-  ctx.save();
-  ctx.translate(-camera.x, -camera.y);
-
-  // Ground
-  ctx.fillStyle = '#2d5a1b';
-  ctx.fillRect(0, 0, MAP_W, MAP_H);
-
-  // Grid texture
-  ctx.strokeStyle = 'rgba(0,0,0,0.08)';
-  ctx.lineWidth = 1;
-  for (let gx=0; gx<MAP_W; gx+=60) { ctx.beginPath(); ctx.moveTo(gx,0); ctx.lineTo(gx,MAP_H); ctx.stroke(); }
-  for (let gy=0; gy<MAP_H; gy+=60) { ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(MAP_W,gy); ctx.stroke(); }
-
-  // Tiles
-  MAP_TILES.forEach(t => {
-    if (t.type === 'path') {
-      ctx.fillStyle = '#7a5c10';
-      ctx.fillRect(t.x, t.y, t.w, t.h);
-    } else if (t.type === 'bush') {
-      ctx.fillStyle = '#1a4a0e';
-      ctx.beginPath();
-      ctx.arc(t.x+18, t.y+18, 18, 0, Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = '#225a12';
-      ctx.beginPath();
-      ctx.arc(t.x+12, t.y+12, 12, 0, Math.PI*2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(t.x+24, t.y+10, 10, 0, Math.PI*2);
-      ctx.fill();
-    } else {
-      // Wall/building
-      ctx.fillStyle = '#3a2a1f';
-      ctx.fillRect(t.x, t.y, t.w, t.h);
-      ctx.fillStyle = '#4a3828';
-      ctx.fillRect(t.x+3, t.y+3, t.w-6, t.h-6);
-      // Windows
-      ctx.fillStyle = 'rgba(255,220,100,0.15)';
-      for (let wx=t.x+12; wx<t.x+t.w-16; wx+=22) {
-        for (let wy=t.y+12; wy<t.y+t.h-16; wy+=22) {
-          ctx.fillRect(wx, wy, 12, 12);
+        if (distance > maxDist) {
+            dx = (dx / distance) * maxDist;
+            dy = (dy / distance) * maxDist;
         }
-      }
+
+        knob.style.transform = `translate(${dx}px, ${dy}px)`;
+        
+        me.vx = (dx / maxDist) * me.speed;
+        me.vy = (dy / maxDist) * me.speed;
     }
-  });
 
-  // Players
-  Object.entries(players).forEach(([id, p]) => {
-    drawPlayer(p, id===myId);
-  });
+    // --- Kamuflyaj Mexanikasi ---
+    document.getElementById('action-btn').addEventListener('touchstart', () => {
+        me.camouflaged = !me.camouflaged;
+        if(me.camouflaged) {
+            // Turgan joyining fon rangini olish (Chameleon effect)
+            const pixel = ctx.getImageData(me.x, me.y, 1, 1).data;
+            me.color = `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+            document.getElementById('camo-sound').play();
+            document.getElementById('action-btn').style.background = 'rgba(231, 76, 60, 0.7)';
+        } else {
+            me.color = '#e74c3c'; // Asliga qaytish
+            document.getElementById('action-btn').style.background = 'rgba(46, 204, 113, 0.7)';
+        }
+    });
 
-  ctx.restore();
+    // --- RENDER (Game Loop) ---
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Flashlight (seeker)
-  if (myRole==='seeker' && gameState==='seeking') drawFlashlight();
+        // 1. Zaminni chizish (Yashil maydon, plitkalar qo'shsangiz ham bo'ladi)
+        ctx.fillStyle = '#27ae60';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Minimap
-  drawMinimap();
-}
+        // 2. Binolarni chizish (Level Design)
+        buildings.forEach(b => {
+            // Psevdo-3D Soya va devorlar
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fillRect(b.x + 10, b.y + 10, b.width, b.height); // Soya
+            
+            // Bino tomi
+            ctx.fillStyle = b.color;
+            
+            // Agar bino ichiga kiriladigan bo'lsa va o'yinchi ichida bo'lsa tomni shaffof qilish
+            if (b.type === 'enterable' && 
+                me.x > b.x && me.x < b.x + b.width && 
+                me.y > b.y && me.y < b.y + b.height) {
+                ctx.globalAlpha = 0.3; // Shaffoflik
+            } else {
+                ctx.globalAlpha = 1.0;
+            }
+            ctx.fillRect(b.x, b.y, b.width, b.height);
+            ctx.globalAlpha = 1.0;
+        });
 
-function drawPlayer(p, isMe) {
-  const alpha = p.found ? 0.3 : 1;
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.translate(p.x, p.y);
+        // 3. O'zimizning joylashuvni yangilash
+        me.x += me.vx;
+        me.y += me.vy;
 
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.beginPath(); ctx.ellipse(0, PLAYER_R+2, PLAYER_R*0.9, 4, 0, 0, Math.PI*2); ctx.fill();
+        // Devorlar bilan to'qnashuv (Collision)
+        buildings.forEach(b => {
+            if (b.type === 'solid') {
+                if (me.x + 15 > b.x && me.x - 15 < b.x + b.width && 
+                    me.y + 15 > b.y && me.y - 15 < b.y + b.height) {
+                    me.x -= me.vx; // Orqaga qaytarish
+                    me.y -= me.vy;
+                }
+            }
+        });
 
-  // Body
-  const color = p.role==='seeker' ? '#e84040' : (p.color || '#3a9de8');
-  ctx.fillStyle = p.found ? '#666' : color;
-  ctx.beginPath(); ctx.arc(0, 0, PLAYER_R, 0, Math.PI*2); ctx.fill();
+        // Serverga o'z holatimizni jo'natish (Faqat xonada bo'lsak)
+        if (currentRoom) {
+            socket.emit('playerMovement', {
+                room: currentRoom, x: me.x, y: me.y, 
+                camouflaged: me.camouflaged, color: me.color
+            });
+        }
 
-  // Shine
-  ctx.fillStyle = 'rgba(255,255,255,0.25)';
-  ctx.beginPath(); ctx.arc(-3, -4, PLAYER_R*0.45, 0, Math.PI*2); ctx.fill();
+        // 4. Barcha o'yinchilarni chizish
+        for (let id in players) {
+            let p = id === myId ? me : players[id];
 
-  // Me indicator
-  if (isMe) {
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.arc(0, 0, PLAYER_R+4, 0, Math.PI*2); ctx.stroke();
-  }
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+            
+            if (p.camouflaged) {
+                // SIZ SO'RAGAN ASOSIY QISMI: Bilinar-bilinmas kontur
+                ctx.fillStyle = p.color; // Atrof-muhit rangi
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.15)'; // Qiyin ko'rinadigan chiziq
+                ctx.lineWidth = 2;
+                ctx.fill();
+                ctx.stroke();
+            } else {
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                // Oddiy holatda 3D qabariq berish
+                ctx.strokeStyle = '#c0392b';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        }
 
-  // Name
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 10px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(p.name.slice(0,8), 0, PLAYER_R+13);
-
-  // Role icon
-  ctx.font = '12px sans-serif';
-  ctx.fillText(p.role==='seeker'?'🔦':(p.found?'😵':'🫣'), 0, -PLAYER_R-4);
-
-  ctx.restore();
-}
-
-function drawFlashlight() {
-  const me = players[myId];
-  if (!me) return;
-  const flc = document.getElementById('flashlightCanvas');
-  const flCtx = flc.getContext('2d');
-  flCtx.clearRect(0, 0, W, H);
-
-  const cx = me.x - camera.x;
-  const cy = me.y - camera.y;
-  const radius = 180;
-
-  flCtx.fillStyle = 'rgba(0,0,0,0.72)';
-  flCtx.fillRect(0, 0, W, H);
-
-  // Cut out flashlight cone
-  flCtx.globalCompositeOperation = 'destination-out';
-  const grad = flCtx.createRadialGradient(cx, cy, 10, cx, cy, radius);
-  grad.addColorStop(0, 'rgba(0,0,0,1)');
-  grad.addColorStop(0.6, 'rgba(0,0,0,0.9)');
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  flCtx.fillStyle = grad;
-  flCtx.beginPath(); flCtx.arc(cx, cy, radius, 0, Math.PI*2); flCtx.fill();
-  flCtx.globalCompositeOperation = 'source-over';
-}
-
-function drawMinimap() {
-  const mc = document.getElementById('minimapCanvas');
-  const mCtx = mc.getContext('2d');
-  const MW=90, MH=90;
-  const sx = MW/MAP_W, sy = MH/MAP_H;
-  mCtx.clearRect(0,0,MW,MH);
-  mCtx.fillStyle='#1a2a14';
-  mCtx.fillRect(0,0,MW,MH);
-
-  // Walls on minimap
-  MAP_TILES.forEach(t => {
-    if (t.type==='wall') {
-      mCtx.fillStyle='#4a3828';
-      mCtx.fillRect(t.x*sx, t.y*sy, t.w*sx, t.h*sy);
+        requestAnimationFrame(draw);
     }
-  });
 
-  // Players
-  Object.entries(players).forEach(([id,p]) => {
-    mCtx.fillStyle = p.found ? '#555' : (p.role==='seeker'?'#e84040':'#3a9de8');
-    mCtx.beginPath();
-    mCtx.arc(p.x*sx, p.y*sy, id===myId?4:3, 0, Math.PI*2);
-    mCtx.fill();
-  });
-
-  // Viewport rect
-  mCtx.strokeStyle='rgba(255,255,255,0.4)';
-  mCtx.lineWidth=1;
-  mCtx.strokeRect(camera.x*sx, camera.y*sy, W*sx, H*sy);
-}
-
-// ────────────────────────────────────────────────────────────
-// JOYSTICK
-// ────────────────────────────────────────────────────────────
-function setupJoystick() {
-  const zone = document.getElementById('joystickZone');
-  const knob = document.getElementById('joystickKnob');
-  const R = 60, KR = 30;
-
-  function onStart(e) {
-    e.preventDefault();
-    const t = e.touches?.[0] || e;
-    const rect = zone.getBoundingClientRect();
-    joyStartX = rect.left + R;
-    joyStartY = rect.top  + R;
-    joyActive = true;
-  }
-  function onMove(e) {
-    e.preventDefault();
-    if (!joyActive) return;
-    const t = e.touches?.[0] || e;
-    let dx = t.clientX - joyStartX;
-    let dy = t.clientY - joyStartY;
-    const dist = Math.hypot(dx,dy);
-    if (dist > R) { dx=dx/dist*R; dy=dy/dist*R; }
-    joyDX = dx/R; joyDY = dy/R;
-    knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
-  }
-  function onEnd(e) {
-    joyActive = false; joyDX=0; joyDY=0;
-    knob.style.transform='translate(-50%,-50%)';
-  }
-  zone.addEventListener('touchstart', onStart, {passive:false});
-  zone.addEventListener('touchmove',  onMove,  {passive:false});
-  zone.addEventListener('touchend',   onEnd);
-  zone.addEventListener('mousedown',  onStart);
-  window.addEventListener('mousemove', onMove);
-  window.addEventListener('mouseup',   onEnd);
-
-  // Keyboard backup
-  const keys = {};
-  window.addEventListener('keydown', e=>{ keys[e.key]=true; applyKeys(); });
-  window.addEventListener('keyup',   e=>{ keys[e.key]=false; applyKeys(); });
-  function applyKeys() {
-    joyDX = (keys['ArrowRight']||keys['d']?1:0)-(keys['ArrowLeft']||keys['a']?1:0);
-    joyDY = (keys['ArrowDown'] ||keys['s']?1:0)-(keys['ArrowUp']  ||keys['w']?1:0);
-    const d=Math.hypot(joyDX,joyDY); if(d>1){joyDX/=d;joyDY/=d;}
-  }
-}
-
-// ────────────────────────────────────────────────────────────
-// TIMER
-// ────────────────────────────────────────────────────────────
-function startGameTimer() {
-  gameTimer = 3*60; // 3 minutes
-  clearInterval(timerInterval);
-  timerInterval = setInterval(() => {
-    gameTimer--;
-    const m = Math.floor(gameTimer/60);
-    const s = gameTimer%60;
-    document.getElementById('hudTimer').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-    if (gameTimer <= 30) document.getElementById('hudTimer').style.color='#e84040';
-    if (gameTimer <= 0) {
-      clearInterval(timerInterval);
-      if (isHost) broadcastMsg('END', {reason:'timeout'});
-      endGame('timeout');
-    }
-  }, 1000);
-}
-
-// ────────────────────────────────────────────────────────────
-// WIN/LOSE
-// ────────────────────────────────────────────────────────────
-function checkWin() {
-  updateHudScore();
-  if (foundCount >= totalHiders) {
-    clearInterval(timerInterval);
-    if (isHost) broadcastMsg('END', {reason:'seeker_win'});
-    setTimeout(() => endGame('seeker_win'), 500);
-  }
-}
-
-function updateHudScore() {
-  document.getElementById('hudScore').textContent = `${foundCount}/${totalHiders}`;
-}
-
-function endGame(reason) {
-  if (gameState==='end') return;
-  gameState='end';
-  cancelAnimationFrame(animId);
-  clearInterval(timerInterval);
-
-  const elapsed = Math.round((Date.now()-gameStartTime)/1000);
-  const escaped = totalHiders - foundCount;
-
-  let emoji='🏆', title='', sub='';
-  if (reason==='seeker_win') {
-    if (myRole==='seeker') { emoji='🎉'; title='G\'alaba!'; sub='Hammani topdingiz!'; }
-    else { emoji='😵'; title='Topildingiz!'; sub='Qidiruvchi g\'olib!'; }
-  } else if (reason==='timeout') {
-    if (myRole==='hider' && !players[myId]?.found) { emoji='🫣'; title='Yashirib qoldingiz!'; sub='Vaqt tugadi, yashiringanlar g\'olib!'; }
-    else { emoji='⏰'; title='Vaqt tugadi!'; sub=`${escaped} kishi yashirinib qoldi!`; }
-  }
-
-  document.getElementById('resultEmoji').textContent=emoji;
-  document.getElementById('resultTitle').textContent=title;
-  document.getElementById('resultSub').textContent=sub;
-  document.getElementById('statTime').textContent=`${Math.floor(elapsed/60)}:${String(elapsed%60).padStart(2,'0')}`;
-  document.getElementById('statFound').textContent=foundCount;
-  document.getElementById('statEscape').textContent=escaped;
-
-  setTimeout(() => showScreen('result'), 800);
-}
-
-// ────────────────────────────────────────────────────────────
-// UI HELPERS
-// ────────────────────────────────────────────────────────────
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-function setBanner(txt) {
-  const b = document.getElementById('statusBanner');
-  b.textContent = txt;
-}
-
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'), 2500);
-}
-
-function goLobby() {
-  if (gameChannel) { broadcastMsg('LEAVE'); gameChannel.close(); gameChannel=null; }
-  clearInterval(timerInterval);
-  cancelAnimationFrame(animId);
-  gameState='lobby';
-  document.getElementById('hudTimer').style.color='var(--gold)';
-  document.getElementById('flashlightCanvas').style.display='none';
-  showScreen('lobby');
-}
-
-// Handle window resize
-window.addEventListener('resize', () => {
-  if (gameState!=='lobby' && gameState!=='waiting' && gameState!=='end') {
-    W=window.innerWidth; H=window.innerHeight;
-    canvas.width=W; canvas.height=H;
-    const flc=document.getElementById('flashlightCanvas');
-    flc.width=W; flc.height=H;
-  }
-});
+    draw(); // Game Loopni boshlash
 </script>
 </body>
 </html>
